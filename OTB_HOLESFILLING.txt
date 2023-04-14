@@ -1,0 +1,79 @@
+USE [Perspective]
+GO
+/****** Object:  StoredProcedure [dbo].[SP_5DP_M]    Script Date: 5/6/2021 9:15:48 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[SP_5DP_M]
+AS
+BEGIN
+	-- SET NOCOUNT ON added to prevent extra result sets from
+	-- interfering with SELECT statements.
+	SET NOCOUNT ON;
+declare @i int
+declare @cnt int
+declare @Flag varchar(10)
+set @cnt=(select count(*) from OG_RD_Table)
+set @i= 1
+select * into #OG_RD_Table_bkp from OG_RD_Table where 1=2
+
+update OG_RD_Table set Occupancy = case when Occupancy >=110 then 100 else Occupancy end
+
+while @i<@cnt
+begin
+
+select  @Flag=case 
+/*when	ReportedDaysBack=28 and ISNULL (Nextvalue,0) = 21 then 'no'
+when	ReportedDaysBack=21 and ISNULL (Nextvalue,0) = 14 then 'no'
+when	ReportedDaysBack=14 and ISNULL (Nextvalue,0) = 7 then 'no'
+when	ReportedDaysBack=7 and ISNULL (Nextvalue,5) in (0,1) then 'no'
+when	ReportedDaysBack in (1,0) then 'no'  else 'in' end   */
+
+when	ReportedDaysBack=0 and ISNULL (Nextvalue,0) = 7 then 'no'
+when	ReportedDaysBack=7 and ISNULL (Nextvalue,0) = 14 then 'no'
+when	ReportedDaysBack=14 and ISNULL (Nextvalue,0) = 21 then 'no'
+when	ReportedDaysBack=21 and ISNULL (Nextvalue,5) =28 then 'no'
+when	ReportedDaysBack =28 then 'no'  else 'in' end
+
+
+
+--not in (1,0) and ReportedDaysBack - 7 <>isnull(Nextvalue,0)and (Nextvalue <> 1 and ReportedDaysBack = 7) then 'In' else 'no' end   
+from (
+select *,lead(ReportedDaysBack) over(partition by hotelid,staydate order by ReportedDaysBack  ) Nextvalue,
+ROW_NUMBER() over(  order by hotelid,staydate,ReportedDaysBack   ) r 
+from OG_RD_Table )x where r=@i
+
+if @Flag ='In'
+begin  
+
+insert into #OG_RD_Table_bkp --Need to create   
+select  
+  ReportRunDate, OrganizationId, HotelID, HotelName, HotelCode, NumberofAvailableRooms, IsMapp, City, 
+StateISO2, CountryISO2,	Zip, Class,	Market,	Location, staydate, ReportedDate ,ReportedDaysBack-7  , 
+RoomSoldOTB,	RoomRevenueOTB,	
+RoomSoldActuals,RoomRevenueActuals,	ADR, RevPAR, Occupancy
+from (
+select *,lead(ReportedDaysBack) over(partition by hotelid,staydate order by ReportedDaysBack  ) Nextvalue,
+ROW_NUMBER() over(  order by  hotelid,staydate ) r  from OG_RD_Table )x where r=@i
+end
+
+set @i=@i+1
+end
+insert  into OG_RD_Table (ReportRunDate, OrganizationId, HotelID, HotelName, HotelCode, NumberofAvailableRooms, IsMapp, City, 
+StateISO2, CountryISO2,	Zip, Class,	Market,	Location, staydate,ReportedDate, ReportedDaysBack , RoomSoldOTB,	RoomRevenueOTB,	
+RoomSoldActuals,RoomRevenueActuals,	ADR, RevPAR, Occupancy) 
+select ReportRunDate, OrganizationId, HotelID, HotelName, HotelCode, NumberofAvailableRooms, IsMapp, City, 
+StateISO2, CountryISO2,	Zip, Class,	Market,	Location, staydate,ReportedDate, ReportedDaysBack , RoomSoldOTB,	RoomRevenueOTB,	
+RoomSoldActuals,RoomRevenueActuals,	ADR, RevPAR, Occupancy from #OG_RD_Table_bkp
+drop table #OG_RD_Table_bkp
+
+END
+
+<Documentation Purpose>
+
+--> Once the raw data has been loaded into a temp table, a back up of the temp table is created in order to clean up the data and check for discrepencies such as occupancy greater than 100.
+-->Once the descrepencies have been addressed we fill in the holes considering the data in hand to be split into data points (0-7 days,14 days, 21 days, 28 days).
+--> we fill in the holes based on the data points.
+--> once these holes are filled in, the cleaned data is inserted into the temp table and the backup table is destroyed. 
+

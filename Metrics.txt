@@ -1,0 +1,300 @@
+USE [Perspective]
+GO
+/****** Object:  StoredProcedure [dbo].[ABC]    
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+ALTER PROCEDURE [dbo].[ABC]
+-- Add the parameters for the stored procedure here
+@businessStartDate NVARCHAR (20)
+,@businessEndDate NVARCHAR (20)
+,@pickupStartDate DATETIME
+,@pickupEndDate DATETIME,
+@param NVARCHAR(10) = 'OCC' 
+
+AS BEGIN 
+	
+	DECLARE @AllMonths NVARCHAR(MAX) = '' DECLARE @sql NVARCHAR(MAX) = '' DECLARE @CurrentDate AS DATETIME
+
+   
+
+
+select
+	@AllMonths += QUOTENAME(CONVERT(VARCHAR(20),x.month)) +','
+from
+	(
+	select
+		distinct 
+		max(ReportedDateTime) as month
+	from
+		dbo.MT
+	where
+		ReportedDateTime BETWEEN @businessStartDate AND @businessEndDate
+	    and Date > ReportedDateTime
+	group by
+		HotelId,
+		Date ) x order by x.month
+
+select @AllMonths = LEFT(@AllMonths,LEN(@AllMonths)-1)
+
+--OCC_PIVOT
+if @param = 'OCC'
+begin
+	
+ set @sql = '
+	select * from
+	( select Class,ReportedDateTime, 
+		case
+			when SUM(NumberofAvailableRooms) = 0 then 0
+			else cast(SUM(NoOfRoomSold)as float)/SUM(NumberofAvailableRooms)
+		end as OCC from
+	(SELECT
+		Class ,
+		ReportedDateTime,
+        NumberofAvailableRooms,
+        NoOfRoomSold
+	From
+		dbo.MT p
+	WHERE
+		ReportedDateTime = (
+		Select
+			max(n.ReportedDateTime)
+		from
+			dbo.MT n
+		where
+			p.HotelID = n.HotelID
+			and p.Date = n.Date
+			and n.Date > n.ReportedDateTime) 
+		and Class <> '' ''
+		and NumberofAvailableRooms <> 0
+		and
+		(case
+			when NumberofAvailableRooms = 0 then 0
+			else cast((NoOfRoomSold)as float)/ NumberofAvailableRooms end) <= 1 
+		) a group by Class,ReportedDateTime) as source
+		pivot ( MAX(OCC) for ReportedDateTime in (' + @AllMonths + ')) as pivottable
+order by
+	(case
+		when class = ''Luxury Class'' then 1
+		when class = ''Upper Upscale Class'' then 2
+		When class = ''Upscale Class'' then 3
+		When class = ''Upper Midscale Class'' then 4
+		When class = ''Midscale class'' then 5
+		When class = ''Economy Class'' then 6
+		else 0
+	end) desc' 
+		
+   EXECUTE(@sql) 
+   END
+   
+--ADR_PIVOT
+if @param = 'ADR' 
+begin
+set @sql ='
+select * from
+	( select Class,ReportedDateTime, 
+		case
+			when SUM(NoOfRoomSold) = 0 then 0
+			else SUM(TotalRevenue)/SUM(NoOfRoomSold)
+		end as ADR from
+	(SELECT
+		Class ,
+		ReportedDateTime,
+        TotalRevenue,
+        NoOfRoomSold
+	From
+		dbo.MT p
+	WHERE
+		ReportedDateTime = (
+		Select
+			max(n.ReportedDateTime)
+		from
+			dbo.MT n
+		where
+			p.HotelID = n.HotelID
+			and p.Date = n.Date and n.Date > n.ReportedDateTime)
+		and Class <> '' ''
+		and
+		(case
+			when NumberofAvailableRooms = 0 then 0
+			else cast((NoOfRoomSold)as float)/ NumberofAvailableRooms end) <= 1 
+		) a group by Class,ReportedDateTime) as source
+		pivot ( MAX(ADR) for ReportedDateTime in (' + @AllMonths + ')) as pivottable
+order by
+	(case
+		when class = ''Luxury Class'' then 1
+		when class = ''Upper Upscale Class'' then 2
+		When class = ''Upscale Class'' then 3
+		When class = ''Upper Midscale Class'' then 4
+		When class = ''Midscale class'' then 5
+		When class = ''Economy Class'' then 6
+		else 0
+	end) desc'
+
+   EXECUTE(@sql) 
+   end
+
+--RevPAR_PIVOT
+if @param = 'RevPAR'
+begin
+set @sql='
+select * from
+	( select Class,ReportedDateTime, 
+		case
+			when SUM(NumberofAvailableRooms) = 0 then 0
+			else SUM(TotalRevenue)/SUM(NumberofAvailableRooms)
+		end as RevPAR from
+	(SELECT
+		Class ,
+		ReportedDateTime,
+        TotalRevenue,
+        NumberofAvailableRooms
+	FROM
+		dbo.MT p
+	WHERE
+        ReportedDateTime = (
+		Select
+			max(n.ReportedDateTime)
+		from
+			dbo.MT n
+		where
+			p.HotelID = n.HotelID
+			and p.Date = n.Date and n.Date > n.ReportedDateTime)
+		and Class <> '' ''
+		and NumberofAvailableRooms <>0
+		and
+		(case
+			when NumberofAvailableRooms = 0 then 0
+			else cast((NoOfRoomSold)as float)/ NumberofAvailableRooms end) <= 1 
+		) a group by Class,ReportedDateTime) as source
+		pivot ( MAX(RevPAR) for ReportedDateTime in (' + @AllMonths + ')) as pivottable
+order by
+	(case
+		when class = ''Luxury Class'' then 1
+		when class = ''Upper Upscale Class'' then 2
+		When class = ''Upscale Class'' then 3
+		When class = ''Upper Midscale Class'' then 4
+		When class = ''Midscale class'' then 5
+		When class = ''Economy Class'' then 6
+		else 0
+	end) desc'
+ 
+   EXECUTE(@sql) 
+   end
+	
+	
+if @param = 'SORT' 
+begin 
+SELECT hotelid
+		,HotelName
+		,HotelCode
+		,Class
+		,Location
+		,REPLACE(REPLACE(AddressLine1, CHAR(13), ''), CHAR(10), '') Address
+		,City
+		,Zip
+		,StateISO2
+		,CountryISO2
+		,Market
+		,NumberofAvailableRooms
+		,ReportedDateTime
+		,DATE
+		,NoOfRoomSold
+		,TotalRevenue,
+		case when NumberofAvailableRooms =0 then 0 else cast((NoOfRoomSold) as float)/NumberofAvailableRooms end as OCC,
+		case when NoOfRoomSold =0 then 0 else (TotalRevenue)/(NoOfRoomSold)  end as ADR,
+		case when NumberofAvailableRooms =0 then 0 else (TotalRevenue)/(NumberofAvailableRooms) end as RevPAR 
+	FROM dbo.MT p
+	WHERE 
+	    ReportedDateTime = (Select  max(n.ReportedDateTime) from dbo.MT n where p.HotelID=n.HotelID and p.Date= n.Date and n.Date > n.ReportedDateTime) 
+		and (case when p.NumberofAvailableRooms =0 then 0 else cast((p.NoOfRoomSold) as float)/p.NumberofAvailableRooms end) <=1
+	    order by HotelID, Date,ReportedDateTime
+	end
+
+ 
+--METRICS BASED ON CLASS
+if @param = 'CLASS' 
+Begin 
+Select Class,cast(SUM(NoOfRoomSold)as float)/SUM(NumberofAvailableRooms)as Occupancy, 
+SUM(TotalRevenue)/SUM(NoOfRoomSold) as ADR, SUM(TotalRevenue)/SUM(NumberofAvailableRooms) as RevPAR 
+from (
+SELECT hotelid
+		,HotelName
+		,HotelCode
+		,Class
+		,Location
+		,REPLACE(REPLACE(AddressLine1, CHAR(13), ''), CHAR(10), '') Address
+		,City
+		,Zip
+		,StateISO2
+		,CountryISO2
+		,Market
+		,NumberofAvailableRooms
+		,ReportedDateTime
+		,DATE
+		,NoOfRoomSold
+		,TotalRevenue,
+		case when NumberofAvailableRooms =0 then 0 else cast((NoOfRoomSold)as float)/NumberofAvailableRooms end as OCC
+	FROM dbo.MT p
+	WHERE 
+	    ReportedDateTime = (Select  max(n.ReportedDateTime) from dbo.MT n where p.HotelID=n.HotelID and p.Date= n.Date and n.Date > n.ReportedDateTime) 
+			) a
+where a.Class <> ' ' and a.OCC <= 1
+group by a.Class
+order by (case when class='Luxury Class' then 1
+when class= 'Upper Upscale Class' then 2 
+When class= 'Upscale Class' then 3 
+When class= 'Upper Midscale Class' then 4 
+When class = 'Midscale class' then 5
+When class = 'Economy Class' then 6 
+else 0 end) desc
+end
+
+
+
+--METRICS BASED ON MARKET
+if @param = 'MARKET' 
+begin
+Select Market
+,(case when SUM(NumberofAvailableRooms)=0 then 0 else cast(SUM(NoOfRoomSold)as float)/SUM(NumberofAvailableRooms)end) as Occupancy, 
+(case when sum(NoOfRoomSold) =0 then 0 else SUM(TotalRevenue)/SUM(NoOfRoomSold) end) as ADR,(case when SUM(NumberofAvailableRooms)=0 then 0 else
+SUM(TotalRevenue)/SUM(NumberofAvailableRooms)end) as RevPAR 
+from (
+SELECT hotelid
+		,HotelName
+		,HotelCode
+		,Class
+		,Location
+		,REPLACE(REPLACE(AddressLine1, CHAR(13), ''), CHAR(10), '') Address
+		,City
+		,Zip
+		,StateISO2
+		,CountryISO2
+		,Market
+		,NumberofAvailableRooms
+		,ReportedDateTime
+		,DATE
+		,NoOfRoomSold
+		,TotalRevenue,
+		case when NumberofAvailableRooms =0 then 0 else cast((NoOfRoomSold)as float)/NumberofAvailableRooms end as OCC
+	FROM dbo.MT p
+	WHERE 
+	    ReportedDateTime = (Select  max(n.ReportedDateTime) from dbo.MT n where p.HotelID=n.HotelID and p.Date= n.Date and n.Date > n.ReportedDateTime) 
+			) a
+where a.Class <> ' ' and a.OCC <= 1
+group by a.Market
+order by Market
+end 
+
+
+
+end		
+
+
+<Documentation Purpose> 
+--> The input being passed is a set of date ranges and based on the parameter required to be filtered out, the input parameters can be the following (Occ Pivot, ADR pivot, RevPAR Pivot, Sort based on class, Sort based on market).
+-->We are calculating the occupancy as (Total No. Of Rooms Sold/ Total No.of Availabe rooms), RevPAR as (Total Revenue/ Total No.Of Available Rooms), ADR as (Total Revenue/ Total No. Of Rooms Sold) for the data being pulled.
+--> We are creating a pivot table in Excel and so writing code accordingly
+--> Based on the requiredment we are also required to sort the data based on Class and Market.
+--> During the sorting if there are null values for a partivular class or market they are not taken into account.

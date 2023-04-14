@@ -1,0 +1,94 @@
+USE [Perspective]
+GO
+/****** Object:  StoredProcedure [dbo].[dbo.HD]    
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+-- =============================================
+-- Author:		<Author,,Name>
+-- Create date: <Create Date,,>
+-- Description:	<Description,,>
+-- =============================================
+ALTER PROCEDURE [dbo].[dbo.HD]
+	-- Add the parameters for the stored procedure here
+	@businessStartDate DATETIME
+	,@businessEndDate DATETIME
+	,@pickupStartDate DATETIME
+	,@pickupEndDate DATETIME
+AS
+BEGIN
+	-- SET NOCOUNT ON added to prevent extra result sets from
+	-- interfering with SELECT statements.
+	SET NOCOUNT ON;
+
+	-- Create a Temp Table to store the Raw Data and then
+	-- work onit to apply the filling Gaps and other transformations
+	-- Including Groupings and Summarizations
+
+	DECLARE @temp TABLE 
+(
+  HotelId int,
+  HotelName nvarchar(100),
+  HoteCode nvarchar(100),
+  Class nvarchar(100),
+  Location nvarchar(100),
+  AddressLine1 nvarchar(250),
+  City  nvarchar(100),
+  Zip nvarchar(100),
+  StateISO2 nvarchar(10),
+  CountryISO2 nvarchar(10),
+  Market nvarchar(100),
+  AvailableRooms bigint,
+  ReportedDateTime datetime,
+  DATE datetime,
+  NoOfRoomSold bigint,
+  TotalRoomRevenue float
+)
+
+	-- Insert statements for procedure here
+	insert into @temp
+	SELECT p.hotelid
+		,m.HotelName
+		,m.HotelCode
+		,m.Class
+		,m.Location
+		,REPLACE(REPLACE(REPLACE(m.AddressLine1, CHAR(13), ''), CHAR(10), ''), CHAR(9), '') Address
+		,m.City
+		,m.Zip
+		,m.StateISO2
+		,m.CountryISO2
+		,m.Market
+		,m.NumberofAvailableRooms
+		,p.ReportedDateTime
+		,p.DATE
+		,p.NoOfRoomSold
+		,p.TotalRevenue
+	FROM PReport p
+	JOIN HMV m ON p.HotelID = m.ID
+	WHERE ReportedDateTime BETWEEN @businessStartDate
+			AND @businessEndDate
+		AND DATE BETWEEN @pickupStartDate
+			AND @pickupEndDate
+		AND hotelid IN (
+			SELECT id
+			FROM hotels
+			WHERE IsActive = 1
+			and OrganizationID not in (2,47,56,85,105,985,993,1128,1871,2061,2210,2522,2818,5355,5362,5460,5478)
+			)
+
+	--SELECT hotelname,count(distinct convert(date,reporteddatetime)) FROM @temp GROUP BY HotelName ORDER BY HotelName
+	--SELECT distinct hotelname,convert(date,reporteddatetime) FROM @temp where hotelname in('Hotel A ', '247 - Hotel B'
+	select * from @temp order by hotelname,ReportedDateTime
+
+	--select Class,location,market,date,sum(NoOfRoomSold) RoomsSold,sum(TotalRoomRevenue) RoomRevenue from @temp group by Class,location,market,date
+END
+
+
+<Documentation Purpose> 
+--> We are pulling out raw data based on a specific range of dates (Business Startdate, Business Enddate and Pickup Start Date, Pickup End Date)
+--> We are pulling the raw data from Pick up Report and Hotel Marketview table.
+--> In this Procedure we are creating a temp table to store the pulled raw data
+--> We are focussing on the Active hotels (IsActive=1) 
