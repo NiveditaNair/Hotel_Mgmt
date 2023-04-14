@@ -1,4 +1,4 @@
-# Hotel_Mgmt
+# Preformance Mgmt for hotel domain
 Adhoc SQL Queries for performing Preformance management for hotel industry to help identify areas of growth, such as potential staffing needs. It helps to automate workflow by providing critial data points and its subsequent cross-functional performance metrics. 
 
 Holiday Pickup Data serves as a way to pul and import raw data, which can be further engineered for analytical purposes, and if required, to be able to build an ML model for Active Hotel availability.
