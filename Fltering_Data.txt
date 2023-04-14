@@ -86,9 +86,3 @@ BEGIN
 	--select Class,location,market,date,sum(NoOfRoomSold) RoomsSold,sum(TotalRoomRevenue) RoomRevenue from @temp group by Class,location,market,date
 END
 
-
-<Documentation Purpose> 
---> We are pulling out raw data based on a specific range of dates (Business Startdate, Business Enddate and Pickup Start Date, Pickup End Date)
---> We are pulling the raw data from Pick up Report and Hotel Marketview table.
---> In this Procedure we are creating a temp table to store the pulled raw data
---> We are focussing on the Active hotels (IsActive=1) 
