@@ -3,7 +3,7 @@ Adhoc SQL Queries for performing Preformance management for hotel industry to he
 
 Filtering_Data serves as a way to pull and import raw data, which can be further engineered for analytical purposes, and if required, to be able to build an ML model for Active Hotel availability.
 
-The queries in Holiday Pickup data extracts raw data based on a given information such as business start and end dataes (Primarily serve as Date ranges for subset extraction), Pickup start and end date.
+The queries extracts raw data based on a given information such as business start and end dataes (Primarily serve as Date ranges for subset extraction), Pickup start and end date.
 
 This data is pulled from databases containing marketview data and pickup reports. The query performs the required calculations on a temporary table that stores the pulled raw data. This analysis is restricted only for active hotels, which are filtered out by an active flag (IsActive)
 
