@@ -70,10 +70,4 @@ drop table #OG_RD_Table_bkp
 
 END
 
-<Documentation Purpose>
-
---> Once the raw data has been loaded into a temp table, a back up of the temp table is created in order to clean up the data and check for discrepencies such as occupancy greater than 100.
--->Once the descrepencies have been addressed we fill in the holes considering the data in hand to be split into data points (0-7 days,14 days, 21 days, 28 days).
---> we fill in the holes based on the data points.
---> once these holes are filled in, the cleaned data is inserted into the temp table and the backup table is destroyed. 
 
