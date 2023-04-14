@@ -292,9 +292,3 @@ end
 end		
 
 
-<Documentation Purpose> 
---> The input being passed is a set of date ranges and based on the parameter required to be filtered out, the input parameters can be the following (Occ Pivot, ADR pivot, RevPAR Pivot, Sort based on class, Sort based on market).
--->We are calculating the occupancy as (Total No. Of Rooms Sold/ Total No.of Availabe rooms), RevPAR as (Total Revenue/ Total No.Of Available Rooms), ADR as (Total Revenue/ Total No. Of Rooms Sold) for the data being pulled.
---> We are creating a pivot table in Excel and so writing code accordingly
---> Based on the requiredment we are also required to sort the data based on Class and Market.
---> During the sorting if there are null values for a partivular class or market they are not taken into account.
